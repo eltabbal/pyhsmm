@@ -503,10 +503,14 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
         # warn('joblib is segfaulting on OS X only, not sure why')
 
         if len(states_list) > 0:
-            joblib_args = list_split(
-                    [self._get_joblib_pair(s) for s in states_list],
-                    len(states_list))
-                    # num_procs)
+
+            if backend == "dask":
+                joblib_args = [self._get_joblib_pair(s) for s in states_list]
+            else:
+                joblib_args = list_split(
+                        [self._get_joblib_pair(s) for s in states_list],
+                        num_procs)
+
 
             with parallel_backend(backend):
                 parallel = partial(_get_sampled_stateseq,
