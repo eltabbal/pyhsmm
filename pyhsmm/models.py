@@ -504,12 +504,10 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
 
         if len(states_list) > 0:
 
-            if backend == "dask":
-                joblib_args = [self._get_joblib_pair(s) for s in states_list]
-            else:
-                joblib_args = list_split(
-                        [self._get_joblib_pair(s) for s in states_list],
-                        num_procs)
+
+            joblib_args = list_split(
+                    [self._get_joblib_pair(s) for s in states_list],
+                    num_procs)
 
 
             with parallel_backend(backend):
