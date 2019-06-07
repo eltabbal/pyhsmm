@@ -5,10 +5,8 @@ from scipy.misc import logsumexp
 # NOTE: pass arguments through global variables instead of arguments to exploit
 # the fact that they're read-only and multiprocessing/joblib uses fork
 
-model = None
-args = None
 
-def _get_stats(model, args, idx):
+def _get_stats(model=None, args=None, idx=None):
     grp = args[idx]
 
     if len(grp) == 0:
@@ -26,6 +24,7 @@ def _get_stats(model, args, idx):
 
     return [s.all_expected_stats for s in states_list]
 
+
 def _get_sampled_stateseq(model=None, args=None, idx=None):
     grp = args[idx]
 
@@ -41,7 +40,8 @@ def _get_sampled_stateseq(model=None, args=None, idx=None):
 
     return [(s.stateseq, s.log_likelihood()) for s in states_list]
 
-def _get_sampled_stateseq_and_labels(model, args, idx):
+
+def _get_sampled_stateseq_and_labels(model=None, args=None, idx=None):
     grp = args[idx]
     if len(grp) == 0:
         return []
@@ -57,11 +57,11 @@ def _get_sampled_stateseq_and_labels(model, args, idx):
             for s in states_list]
 
 
-cmaxes = None
-alphal = None
-scaled_alphal = None
-trans_matrix = None
-aBl = None
+# cmaxes = None
+# alphal = None
+# scaled_alphal = None
+# trans_matrix = None
+# aBl = None 
 def _get_predictive_likelihoods(cmaxes, alpha1, scaled_alphal, trans_matrix, aBl, k):
     future_likelihoods = logsumexp(
             np.log(scaled_alphal[:-k].dot(np.linalg.matrix_power(trans_matrix,k))) \

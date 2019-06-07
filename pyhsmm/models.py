@@ -144,18 +144,35 @@ class _HMMBase(Model):
 
                 prev_k = k
         else:
-            from joblib import Parallel, delayed
-            from . import parallel
+            from joblib import Parallel, delayed, parallel_backend
+            from .parallel import _get_predictive_likelihoods
+            from functools import partial
 
-            parallel.cmaxes = cmaxes
-            parallel.alphal = alphal
-            parallel.scaled_alphal = scaled_alphal
-            parallel.trans_matrix = s.trans_matrix
-            parallel.aBl = s.aBl
+            # warn('joblib is segfaulting on OS X only, not sure why')
 
-            outs = Parallel(n_jobs=num_procs,backend='multiprocessing')\
-                    (delayed(parallel._get_predictive_likelihoods)(k)
-                            for k in forecast_horizons)
+            with parallel_backend(backend):
+                parallel = partial(_get_predictive_likelihoods,
+                                   cmaxes=cmaxes,
+                                   alphal=alphal,
+                                   scaled_alphal=scaled_alphal,
+                                   trans_matrix=trans_matrix,
+                                   aBl=aBl)
+                outs = Parallel(n_jobs=num_procs,backend=backend)\
+                        (delayed(parallel)(k) for k in forecast_horizons)
+
+
+            # from joblib import Parallel, delayed
+            # from . import parallel
+            #
+            # parallel.cmaxes = cmaxes
+            # parallel.alphal = alphal
+            # parallel.scaled_alphal = scaled_alphal
+            # parallel.trans_matrix = s.trans_matrix
+            # parallel.aBl = s.aBl
+            
+            # outs = Parallel(n_jobs=num_procs,backend='multiprocessing')\
+            #         (delayed(parallel._get_predictive_likelihoods)(k)
+            #                 for k in forecast_horizons)
 
         return outs
 
@@ -509,16 +526,16 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
 
 
 class _HMMMeanField(_HMMBase,ModelMeanField):
-    def meanfield_coordinate_descent_step(self,compute_vlb=True,num_procs=0):
+    def meanfield_coordinate_descent_step(self,compute_vlb=True,num_procs=0,backend="multiprocessing"):
         # we want to update the states factor last to make the VLB
         # computation efficient, but to update the parameters first we have to
         # ensure everything in states_list has expected statistics computed
         self._meanfield_update_states_list(
             [s for s in self.states_list if not hasattr(s, 'expected_states')],
-            num_procs)
+            num_procs,backend=backend)
 
         self.meanfield_update_parameters()
-        self.meanfield_update_states(num_procs)
+        self.meanfield_update_states(num_procs,backend=backend)
 
         if compute_vlb:
             return self.vlb(states_last_updated=True)
@@ -545,15 +562,15 @@ class _HMMMeanField(_HMMBase,ModelMeanField):
             [s.expected_states[0] for s in self.states_list])
         self._clear_caches()
 
-    def meanfield_update_states(self,num_procs=0):
-        self._meanfield_update_states_list(self.states_list,num_procs=num_procs)
+    def meanfield_update_states(self,num_procs=0,backend="multiprocessing"):
+        self._meanfield_update_states_list(self.states_list,num_procs=num_procs,backend=backend)
 
-    def _meanfield_update_states_list(self,states_list,num_procs=0):
+    def _meanfield_update_states_list(self,states_list,num_procs=0,backend="multiprocessing"):
         if num_procs == 0:
             for s in states_list:
                 s.meanfieldupdate()
         else:
-            self._joblib_meanfield_update_states(states_list,num_procs)
+            self._joblib_meanfield_update_states(states_list,num_procs,backend=backend)
 
     def vlb(self, states_last_updated=False):
         vlb = 0.
@@ -565,20 +582,31 @@ class _HMMMeanField(_HMMBase,ModelMeanField):
 
     ### joblib parallel stuff
 
-    def _joblib_meanfield_update_states(self,states_list,num_procs):
+    def _joblib_meanfield_update_states(self,states_list,num_procs,backend="multiprocessing"):
         if len(states_list) > 0:
-            from joblib import Parallel, delayed
-            from . import parallel
+            from joblib import Parallel, delayed, parallel_backend
+            from .parallel import _get_stats
+            from functools import partial
 
             joblib_args = list_split(
                     [self._get_joblib_pair(s) for s in states_list],
                     num_procs)
 
-            parallel.model = self
-            parallel.args = joblib_args
+            parallel = partial(_get_stats,
+                               model=self,
+                               args=joblib_args)
+            # parallel.model = self
+            # parallel.args = joblib_args
 
-            allstats = Parallel(n_jobs=num_procs,backend='multiprocessing')\
-                    (delayed(parallel._get_stats)(idx) for idx in range(len(joblib_args)))
+            with parallel_backend(backend):
+                allstats = Parallel(n_jobs=num_procs)\
+                        (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
+
+            # parallel.model = self
+            # parallel.args = joblib_args
+            #
+            # allstats = Parallel(n_jobs=num_procs,backend='multiprocessing')\
+            #         (delayed(parallel._get_stats)(idx) for idx in range(len(joblib_args)))
 
             for s, stats in zip(
                     [s for grp in list_split(states_list) for s in grp],
@@ -592,14 +620,14 @@ class _HMMMeanField(_HMMBase,ModelMeanField):
 class _HMMSVI(_HMMBase,ModelMeanFieldSVI):
     # NOTE: classes with this mixin should also have the _HMMMeanField mixin for
     # joblib/multiprocessing stuff to work
-    def meanfield_sgdstep(self,minibatch,prob,stepsize,num_procs=0,**kwargs):
+    def meanfield_sgdstep(self,minibatch,prob,stepsize,num_procs=0,backend="multiprocessing",**kwargs):
         ## compute the local mean field step for the minibatch
         mb_states_list = self._get_mb_states_list(minibatch,**kwargs)
         if num_procs == 0:
             for s in mb_states_list:
                 s.meanfieldupdate()
         else:
-            self._joblib_meanfield_update_states(mb_states_list,num_procs)
+            self._joblib_meanfield_update_states(mb_states_list,num_procs,backend=backend)
 
         ## take a global step on the parameters
         self._meanfield_sgdstep_parameters(mb_states_list,prob,stepsize)
