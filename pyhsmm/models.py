@@ -437,9 +437,9 @@ class _HMMBase(Model):
 
 class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
     @line_profiled
-    def resample_model(self,num_procs=0):
+    def resample_model(self,num_procs=0,backend="multiprocessing"):
         self.resample_parameters()
-        self.resample_states(num_procs=num_procs)
+        self.resample_states(num_procs=num_procs,backend=backend)
 
     @line_profiled
     def resample_parameters(self):
@@ -461,12 +461,12 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
         self.init_state_distn.resample([s.stateseq[0] for s in self.states_list])
         self._clear_caches()
 
-    def resample_states(self,num_procs=0):
+    def resample_states(self,num_procs=0,backend="multiprocessing"):
         if num_procs == 0:
             for s in self.states_list:
                 s.resample()
         else:
-            self._joblib_resample_states(self.states_list,num_procs)
+            self._joblib_resample_states(self.states_list,num_procs,backend)
 
     def copy_sample(self):
         new = copy.copy(self)
@@ -478,7 +478,7 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
 
     ### joblib parallel stuff here
 
-    def _joblib_resample_states(self,states_list,num_procs):
+    def _joblib_resample_states(self,states_list,num_procs,backend):
         from joblib import Parallel, delayed
         from . import parallel
 
@@ -492,7 +492,7 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
             parallel.model = self
             parallel.args = joblib_args
 
-            raw_stateseqs = Parallel(n_jobs=num_procs,backend='multiprocessing')\
+            raw_stateseqs = Parallel(n_jobs=num_procs,backend=backend)\
                     (delayed(parallel._get_sampled_stateseq)(idx)
                             for idx in range(len(joblib_args)))
 
@@ -1393,4 +1393,3 @@ class WeakLimitHDPHSMMTruncatedIntNegBinSeparateTrans(
         _SeparateTransMixin,
         WeakLimitHDPHSMMTruncatedIntNegBin):
     _states_class = hsmm_inb_states.HSMMStatesTruncatedIntegerNegativeBinomialSeparateTrans
-
