@@ -169,7 +169,7 @@ class _HMMBase(Model):
             # parallel.scaled_alphal = scaled_alphal
             # parallel.trans_matrix = s.trans_matrix
             # parallel.aBl = s.aBl
-            
+
             # outs = Parallel(n_jobs=num_procs,backend='multiprocessing')\
             #         (delayed(parallel._get_predictive_likelihoods)(k)
             #                 for k in forecast_horizons)
@@ -505,7 +505,8 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
         if len(states_list) > 0:
             joblib_args = list_split(
                     [self._get_joblib_pair(s) for s in states_list],
-                    num_procs)
+                    len(states_list))
+                    # num_procs)
 
             with parallel_backend(backend):
                 parallel = partial(_get_sampled_stateseq,
