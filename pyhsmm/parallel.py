@@ -26,7 +26,7 @@ def _get_stats(model, args, idx):
 
     return [s.all_expected_stats for s in states_list]
 
-def _get_sampled_stateseq(model, args, idx):
+def _get_sampled_stateseq(model=None, args=None, idx):
     grp = args[idx]
 
     if len(grp) == 0:

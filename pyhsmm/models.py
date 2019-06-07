@@ -497,7 +497,7 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
                 # parallel.model = self
                 # parallel.args = joblib_args
                 raw_stateseqs = Parallel(n_jobs=num_procs)\
-                        (delayed(parallel)(idx) for idx in range(len(joblib_args)))
+                        (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
 
             for s, (stateseq, log_likelihood) in zip(
                     [s for grp in list_split(states_list,num_procs) for s in grp],
