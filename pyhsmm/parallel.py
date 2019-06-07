@@ -8,7 +8,7 @@ from scipy.misc import logsumexp
 model = None
 args = None
 
-def _get_stats(idx):
+def _get_stats(model, args, idx):
     grp = args[idx]
 
     if len(grp) == 0:
@@ -26,7 +26,7 @@ def _get_stats(idx):
 
     return [s.all_expected_stats for s in states_list]
 
-def _get_sampled_stateseq(idx):
+def _get_sampled_stateseq(model, args, idx):
     grp = args[idx]
 
     if len(grp) == 0:
@@ -41,7 +41,7 @@ def _get_sampled_stateseq(idx):
 
     return [(s.stateseq, s.log_likelihood()) for s in states_list]
 
-def _get_sampled_stateseq_and_labels(idx):
+def _get_sampled_stateseq_and_labels(model, args, idx):
     grp = args[idx]
     if len(grp) == 0:
         return []
@@ -62,7 +62,7 @@ alphal = None
 scaled_alphal = None
 trans_matrix = None
 aBl = None
-def _get_predictive_likelihoods(k):
+def _get_predictive_likelihoods(cmaxes, alpha1, scaled_alphal, trans_matrix, aBl, k):
     future_likelihoods = logsumexp(
             np.log(scaled_alphal[:-k].dot(np.linalg.matrix_power(trans_matrix,k))) \
                     + cmaxes[:-k,None] + aBl[k:], axis=1)

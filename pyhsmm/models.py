@@ -480,7 +480,8 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
 
     def _joblib_resample_states(self,states_list,num_procs,backend):
         from joblib import Parallel, delayed, parallel_backend
-        from . import parallel
+        from .parallel import _get_sampled_stateseq
+        from functools import partial
 
         # warn('joblib is segfaulting on OS X only, not sure why')
 
@@ -490,11 +491,13 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
                     num_procs)
 
             with parallel_backend(backend):
-                parallel.model = self
-                parallel.args = joblib_args
+                parallel = partial(_get_sampled_stateseq,
+                                   model=self,
+                                   args=joblib_args)
+                # parallel.model = self
+                # parallel.args = joblib_args
                 raw_stateseqs = Parallel(n_jobs=num_procs)\
-                        (delayed(parallel._get_sampled_stateseq)(idx)
-                                for idx in range(len(joblib_args)))
+                        (delayed(parallel)(idx) for idx in range(len(joblib_args)))
 
             for s, (stateseq, log_likelihood) in zip(
                     [s for grp in list_split(states_list,num_procs) for s in grp],
