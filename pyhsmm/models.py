@@ -517,10 +517,10 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
             raw_stateseqs = Parallel(n_jobs=num_procs)\
                     (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
 
-            # for s, (stateseq, log_likelihood) in zip(
-            #         [s for grp in list_split(states_list,num_procs) for s in grp],
-            #         [seq for grp in raw_stateseqs for seq in grp]):
-            #     s.stateseq, s._normalizer = stateseq, log_likelihood
+            for s, (stateseq, log_likelihood) in zip(
+                    [s for grp in list_split(states_list,num_procs) for s in grp],
+                    [seq for grp in raw_stateseqs for seq in grp]):
+                s.stateseq, s._normalizer = stateseq, log_likelihood
 
     def _get_joblib_pair(self,states_obj):
         return (states_obj.data,states_obj._kwargs)
