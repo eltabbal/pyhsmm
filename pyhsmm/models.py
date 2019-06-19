@@ -508,7 +508,7 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
                     [self._get_joblib_pair(s) for s in states_list],
                     num_procs)
 
-            with parallel_backend(backend):
+            with parallel_backend(backend, scatter=[self,joblib_args]):
                 parallel = partial(_get_sampled_stateseq,
                                    model=self,
                                    args=joblib_args)
