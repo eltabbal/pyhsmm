@@ -454,9 +454,9 @@ class _HMMBase(Model):
 
 class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
     @line_profiled
-    def resample_model(self,num_procs=0,backend="multiprocessing"):
+    def resample_model(self,states_list,num_procs=0,backend="multiprocessing"):
         self.resample_parameters()
-        self.resample_states(num_procs=num_procs,backend=backend)
+        self.resample_states(states_list,num_procs=num_procs,backend=backend)
 
     @line_profiled
     def resample_parameters(self):
@@ -478,12 +478,12 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
         self.init_state_distn.resample([s.stateseq[0] for s in self.states_list])
         self._clear_caches()
 
-    def resample_states(self,num_procs=0,backend="multiprocessing"):
+    def resample_states(self,states_list,num_procs=0,backend="multiprocessing"):
         if num_procs == 0:
             for s in self.states_list:
                 s.resample()
         else:
-            self._joblib_resample_states(self.states_list,num_procs,backend)
+            self._joblib_resample_states(states_list,num_procs,backend)
 
     def copy_sample(self):
         new = copy.copy(self)
@@ -504,8 +504,10 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
 
         if len(states_list) > 0:
 
+            # need to bring back a reference to the states_list
+            # keep data scattered outside of this reference...
             joblib_args = list_split(
-                    [self._get_joblib_pair(s) for s in states_list],
+                    [self._get_joblib_pair2(s) for s in states_list],
                     num_procs)
 
             # with parallel_backend(backend, scatter=[self,joblib_args]):
@@ -514,17 +516,20 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
                                args=joblib_args)
             # parallel.model = self
             # parallel.args = joblib_args
-            with parallel_backend(backend=backend, scatter=[self, joblib_args]):
-                raw_stateseqs = Parallel(n_jobs=num_procs)\
-                        (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
+            # with parallel_backend(backend=backend, scatter=[self, joblib_args]):
+            raw_stateseqs = Parallel(n_jobs=num_procs)\
+                    (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
 
             for s, (stateseq, log_likelihood) in zip(
-                    [s for grp in list_split(states_list,num_procs) for s in grp],
-                    [seq for grp in raw_stateseqs for seq in grp]):
+                    [s for grp in list_split(self.states_list,num_procs) for s in grp], # references to stateslist in model object
+                    [seq for grp in raw_stateseqs for seq in grp]): # return seq ll tuple
                 s.stateseq, s._normalizer = stateseq, log_likelihood
 
     def _get_joblib_pair(self,states_obj):
         return (states_obj.data,states_obj._kwargs)
+
+    def _get_joblib_pair2(self,states_obj):
+        return (states_obj,{})
 
 
 class _HMMMeanField(_HMMBase,ModelMeanField):
