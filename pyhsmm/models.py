@@ -508,14 +508,14 @@ class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
                     [self._get_joblib_pair(s) for s in states_list],
                     num_procs)
 
-            with parallel_backend(backend, scatter=[self,joblib_args]):
-                parallel = partial(_get_sampled_stateseq,
-                                   model=self,
-                                   args=joblib_args)
-                # parallel.model = self
-                # parallel.args = joblib_args
-                raw_stateseqs = Parallel(n_jobs=num_procs)\
-                        (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
+            # with parallel_backend(backend, scatter=[self,joblib_args]):
+            parallel = partial(_get_sampled_stateseq,
+                               model=self,
+                               args=joblib_args)
+            # parallel.model = self
+            # parallel.args = joblib_args
+            raw_stateseqs = Parallel(n_jobs=num_procs)\
+                    (delayed(parallel)(idx=idx) for idx in range(len(joblib_args)))
 
             for s, (stateseq, log_likelihood) in zip(
                     [s for grp in list_split(states_list,num_procs) for s in grp],
