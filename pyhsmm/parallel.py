@@ -61,7 +61,7 @@ def _get_sampled_stateseq_and_labels(model=None, args=None, idx=None):
 # alphal = None
 # scaled_alphal = None
 # trans_matrix = None
-# aBl = None 
+# aBl = None
 def _get_predictive_likelihoods(cmaxes, alpha1, scaled_alphal, trans_matrix, aBl, k):
     future_likelihoods = logsumexp(
             np.log(scaled_alphal[:-k].dot(np.linalg.matrix_power(trans_matrix,k))) \
