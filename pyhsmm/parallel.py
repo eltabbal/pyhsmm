@@ -8,6 +8,11 @@ from scipy.special import logsumexp
 model = None
 args = None
 
+def _update_obs(idx):
+    data = args
+    return model.obs_distns[idx].resample([_data[_stateseq == idx] for _data, _stateseq in data])    
+
+
 def _get_stats(idx):
     grp = args[idx]
 

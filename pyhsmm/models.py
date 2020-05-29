@@ -438,18 +438,35 @@ class _HMMBase(Model):
 class _HMMGibbsSampling(_HMMBase,ModelGibbsSampling):
     @line_profiled
     def resample_model(self,num_procs=0):
-        self.resample_parameters()
+        self.resample_parameters(num_procs=num_procs)
         self.resample_states(num_procs=num_procs)
 
     @line_profiled
-    def resample_parameters(self):
-        self.resample_obs_distns()
+    def resample_parameters(self, num_procs=0):
+        if num_procs==0:
+            self.resample_obs_distns()
+        else:
+            self._joblib_resample_obs_distns(num_procs=num_procs)
         self.resample_trans_distn()
         self.resample_init_state_distn()
 
     def resample_obs_distns(self):
         for state, distn in enumerate(self.obs_distns):
             distn.resample([s.data[s.stateseq == state] for s in self.states_list])
+        self._clear_caches()
+
+    def _joblib_resample_obs_distns(self, num_procs=0):
+        from joblib import Parallel, delayed
+        from . import parallel
+
+        parallel.model = self
+        parallel.args = [(_.data, _.stateseq) for _ in self.states_list]
+        
+        new_distns = Parallel(n_jobs=num_procs,backend='multiprocessing')\
+                    (delayed(parallel._update_obs)(idx)
+                            for idx in range(len(self.obs_distns)))
+
+        self.obs_distns = new_distns
         self._clear_caches()
 
     @line_profiled
